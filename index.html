@@ -1,10 +1,11 @@
-<!-- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="uz">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kamerani Sinov</title>
-    <script src="https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js"></script>
+    <link rel="icon" href="data:,">
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -54,11 +55,12 @@
             try {
                 stream = await navigator.mediaDevices.getUserMedia({
                     video: {
-                        facingMode: 'environment', // Orqa kamera
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
+                        facingMode: { ideal: 'environment' },
+                        width: { ideal: 720 },
+                        height: { ideal: 1280 }
                     }
                 });
+
                 video.srcObject = stream;
                 video.style.display = 'block';
                 captureButton.disabled = false;
@@ -70,21 +72,18 @@
 
         // Rasmga olish
         captureButton.addEventListener('click', () => {
-            try {
-                const canvas = document.createElement('canvas');
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                const context = canvas.getContext('2d');
-                context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                photo.src = canvas.toDataURL('image/jpeg');
-                photo.style.display = 'block';
-                video.style.display = 'none';
-                stream.getTracks().forEach(track => track.stop()); // Kamerani to'xtatish
-                processButton.disabled = false;
-            } catch (error) {
-                console.error("Rasmga olishda xatolik:", error);
-                alert("Rasmni olishda xatolik yuz berdi. Iltimos, qaytadan urinib ko'ring.");
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            photo.src = canvas.toDataURL('image/jpeg');
+            photo.style.display = 'block';
+            video.style.display = 'none';
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
             }
+            processButton.disabled = false;
         });
 
         // OCR (matnni tanib olish)
@@ -99,8 +98,6 @@
 
             try {
                 const { data: { text } } = await Tesseract.recognize(photo.src, 'uzb+eng');
-                console.log("OCR natijasi:", text);
-
                 const name = text.match(/Ism:?\s*([^\n]+)/i)?.[1] || "Topilmadi";
                 const surname = text.match(/Familiya:?\s*([^\n]+)/i)?.[1] || "Topilmadi";
                 const birthDate = text.match(/Tug['']ilgan sana:?\s*([0-9.]+)/i)?.[1] || "Topilmadi";
@@ -120,131 +117,4 @@
         });
     </script>
 </body>
-</html> -->
-<!DOCTYPE html>
-<html lang="uz">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Kamerani Sinov</title>
-        <script src="https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js"></script>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-                max-width: 600px;
-                margin: 0 auto;
-                padding: 20px;
-            }
-            video, img {
-                width: 100%;
-                max-width: 400px;
-                margin-bottom: 10px;
-            }
-            button {
-                display: block;
-                width: 100%;
-                padding: 10px;
-                margin-bottom: 10px;
-                font-size: 16px;
-            }
-            #result {
-                margin-top: 20px;
-                border: 1px solid #ccc;
-                padding: 10px;
-            }
-        </style>
-    </head>
-    <body>
-        <h1>Kamerani Sinov</h1>
-        <video id="video" autoplay playsinline></video>
-        <img id="photo" style="display:none;">
-        <button id="startCamera">Kamerani yoqish</button>
-        <button id="capturePhoto" disabled>Rasmga olish</button>
-        <button id="processImage" disabled>Rasmni qayta ishlash</button>
-        <div id="result"></div>
-    
-        <script>
-            const video = document.getElementById('video');
-            const photo = document.getElementById('photo');
-            const startButton = document.getElementById('startCamera');
-            const captureButton = document.getElementById('capturePhoto');
-            const processButton = document.getElementById('processImage');
-            const resultDiv = document.getElementById('result');
-            let stream;
-    
-            // Kamerani ishga tushirish
-            startButton.addEventListener('click', async () => {
-                try {
-                    stream = await navigator.mediaDevices.getUserMedia({
-                        video: { facingMode: { ideal: 'environment' } }
-                    }).catch(() => navigator.mediaDevices.getUserMedia({ video: true }));
-    
-                    video.srcObject = stream;
-                    video.style.display = 'block';
-                    captureButton.disabled = false;
-                } catch (error) {
-                    console.error("Kamerani yoqishda xatolik:", error);
-                    alert("Kamera ishlamayapti. Iltimos, ruxsat berganingizni yoki HTTPS ishlatayotganingizni tekshiring.");
-                }
-            });
-    
-            // Rasmga olish
-            captureButton.addEventListener('click', () => {
-                try {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    const context = canvas.getContext('2d');
-                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    photo.src = canvas.toDataURL('image/jpeg', 1.0); // Rasm sifatini maksimal darajada saqlash
-                    photo.style.display = 'block';
-                    video.style.display = 'none';
-    
-                    if (stream) {
-                        stream.getTracks().forEach(track => track.stop()); // Kamerani to'xtatish
-                    }
-                    processButton.disabled = false;
-                } catch (error) {
-                    console.error("Rasmga olishda xatolik:", error);
-                    alert("Rasmni olishda xatolik yuz berdi. Iltimos, qaytadan urinib ko'ring.");
-                }
-            });
-    
-            // OCR (matnni tanib olish)
-            processButton.addEventListener('click', async () => {
-                if (!photo.src) {
-                    alert("Iltimos, avval rasmga oling.");
-                    return;
-                }
-    
-                resultDiv.innerHTML = "Rasm qayta ishlanmoqda...";
-                processButton.disabled = true;
-    
-                try {
-                    const { data: { text } } = await Tesseract.recognize(photo.src, 'uzb+eng', {
-                        logger: info => console.log(info) // Jarayonni kuzatish
-                    });
-    
-                    console.log("OCR natijasi:", text);
-    
-                    const name = text.match(/Ism:?\s*([^\n]+)/i)?.[1] || "Topilmadi";
-                    const surname = text.match(/Familiya:?\s*([^\n]+)/i)?.[1] || "Topilmadi";
-                    const birthDate = text.match(/Tug['’]ilgan sana:?\s*([0-9.]+)/i)?.[1] || "Topilmadi";
-    
-                    resultDiv.innerHTML = `
-                        <h2>Natija:</h2>
-                        <p><strong>Ism:</strong> ${name}</p>
-                        <p><strong>Familiya:</strong> ${surname}</p>
-                        <p><strong>Tug'ilgan sana:</strong> ${birthDate}</p>
-                    `;
-                } catch (error) {
-                    console.error("Rasmni qayta ishlashda xatolik:", error);
-                    resultDiv.innerHTML = "Rasmni qayta ishlashda xatolik yuz berdi.";
-                } finally {
-                    processButton.disabled = false;
-                }
-            });
-        </script>
-    </body>
-    </html>
-    
+</html>
