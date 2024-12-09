@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ID Karta Skaneri</title>
+    <title>Kamerani Sinov</title>
     <script src="https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js"></script>
     <style>
         body {
@@ -12,7 +12,7 @@
             margin: 0 auto;
             padding: 20px;
         }
-        #video, #photo {
+        video, img {
             width: 100%;
             max-width: 400px;
             margin-bottom: 10px;
@@ -32,8 +32,8 @@
     </style>
 </head>
 <body>
-    <h1>ID Karta Skaneri</h1>
-    <video id="video" autoplay playsinline style="display:none;"></video>
+    <h1>Kamerani Sinov</h1>
+    <video id="video" autoplay playsinline></video>
     <img id="photo" style="display:none;">
     <button id="startCamera">Kamerani yoqish</button>
     <button id="capturePhoto" disabled>Rasmga olish</button>
@@ -49,45 +49,48 @@
         const resultDiv = document.getElementById('result');
         let stream;
 
-        // Kamerani yoqish va ruxsat olish
+        // Kamerani ishga tushirish
         startButton.addEventListener('click', async () => {
             try {
                 stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment' } // Orqa kamerani faollashtirish
+                    video: {
+                        facingMode: 'environment', // Orqa kamera
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
                 });
                 video.srcObject = stream;
                 video.style.display = 'block';
-                startButton.style.display = 'none';
                 captureButton.disabled = false;
-            } catch (err) {
-                console.error("Kamerani yoqishda xatolik:", err);
-                alert("Kamera ishlash uchun ruxsat bermaganingizni tekshiring.");
+            } catch (error) {
+                console.error("Kamerani yoqishda xatolik:", error);
+                alert("Kamera ishlamayapti. Iltimos, ruxsat berganingizni yoki HTTPS ishlatayotganingizni tekshiring.");
             }
         });
 
         // Rasmga olish
         captureButton.addEventListener('click', () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            canvas.getContext('2d').drawImage(video, 0, 0);
-            photo.src = canvas.toDataURL('image/jpeg');
-            photo.style.display = 'block';
-            video.style.display = 'none';
-
-            // Kamerani to'xtatish
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const context = canvas.getContext('2d');
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                photo.src = canvas.toDataURL('image/jpeg');
+                photo.style.display = 'block';
+                video.style.display = 'none';
+                stream.getTracks().forEach(track => track.stop()); // Kamerani to'xtatish
+                processButton.disabled = false;
+            } catch (error) {
+                console.error("Rasmga olishda xatolik:", error);
+                alert("Rasmni olishda xatolik yuz berdi. Iltimos, qaytadan urinib ko'ring.");
             }
-
-            processButton.disabled = false;
-            captureButton.disabled = true;
         });
 
-        // Rasmni qayta ishlash (OCR)
+        // OCR (matnni tanib olish)
         processButton.addEventListener('click', async () => {
             if (!photo.src) {
-                alert("Iltimos, avval rasmga oling");
+                alert("Iltimos, avval rasmga oling.");
                 return;
             }
 
@@ -95,16 +98,13 @@
             processButton.disabled = true;
 
             try {
-                // OCR orqali matnni tanib olish
                 const { data: { text } } = await Tesseract.recognize(photo.src, 'uzb+eng');
                 console.log("OCR natijasi:", text);
 
-                // Matndan kerakli ma'lumotlarni olish
                 const name = text.match(/Ism:?\s*([^\n]+)/i)?.[1] || "Topilmadi";
                 const surname = text.match(/Familiya:?\s*([^\n]+)/i)?.[1] || "Topilmadi";
                 const birthDate = text.match(/Tug['']ilgan sana:?\s*([0-9.]+)/i)?.[1] || "Topilmadi";
 
-                // Natijani ko'rsatish
                 resultDiv.innerHTML = `
                     <h2>Natija:</h2>
                     <p><strong>Ism:</strong> ${name}</p>
@@ -116,8 +116,6 @@
                 resultDiv.innerHTML = "Rasmni qayta ishlashda xatolik yuz berdi.";
             } finally {
                 processButton.disabled = false;
-                startButton.style.display = 'block';
-                captureButton.disabled = true;
             }
         });
     </script>
