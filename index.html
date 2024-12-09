@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ID Karta OCR va Word Faylga Saqlash</title>
+    <script src="https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.20.2/docxtemplater.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #video, #photo {
+            width: 100%;
+            max-width: 400px;
+            margin-bottom: 10px;
+        }
+        button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        #result {
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>ID Karta OCR va Word Faylga Saqlash</h1>
+    <video id="video" autoplay playsinline style="display:none;"></video>
+    <img id="photo" style="display:none;">
+    <button id="startCamera">Kamerani yoqish</button>
+    <button id="capturePhoto" disabled>Rasmga olish</button>
+    <button id="processImage" disabled>Rasmni qayta ishlash</button>
+    <button id="downloadDoc" disabled>Wordga yuklab olish</button>
+    <div id="result"></div>
+
+    <script>
+        const video = document.getElementById('video');
+        const photo = document.getElementById('photo');
+        const startButton = document.getElementById('startCamera');
+        const captureButton = document.getElementById('capturePhoto');
+        const processButton = document.getElementById('processImage');
+        const downloadButton = document.getElementById('downloadDoc');
+        const resultDiv = document.getElementById('result');
+        let stream;
+        let ocrData = {};
+
+        startButton.addEventListener('click', async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                });
+                video.srcObject = stream;
+                video.style.display = 'block';
+                startButton.style.display = 'none';
+                captureButton.disabled = false;
+            } catch (err) {
+                console.error("Kamerani yoqishda xatolik:", err);
+                alert("Kameraga ruxsat berganingizni tekshiring.");
+            }
+        });
+
+        captureButton.addEventListener('click', () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            photo.src = canvas.toDataURL('image/jpeg');
+            photo.style.display = 'block';
+            video.style.display = 'none';
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            processButton.disabled = false;
+            captureButton.disabled = true;
+        });
+
+        processButton.addEventListener('click', async () => {
+            if (!photo.src) {
+                alert("Iltimos, avval rasmga oling");
+                return;
+            }
+
+            resultDiv.innerHTML = "Rasm qayta ishlanmoqda...";
+            processButton.disabled = true;
+
+            try {
+                const { data: { text } } = await Tesseract.recognize(photo.src, 'uzb+eng');
+                console.log("OCR natijasi:", text);
+
+                // Tesseract tanigan ma'lumotlarni ajratish
+                ocrData.name = text.match(/Ism:?\s*([^\n]+)/i)?.[1] || "Topilmadi";
+                ocrData.surname = text.match(/Familiya:?\s*([^\n]+)/i)?.[1] || "Topilmadi";
+                ocrData.birthDate = text.match(/Tug['']ilgan sana:?\s*([0-9.]+)/i)?.[1] || "Topilmadi";
+
+                resultDiv.innerHTML = `
+                    <h2>Natija:</h2>
+                    <p><strong>Ism:</strong> ${ocrData.name}</p>
+                    <p><strong>Familiya:</strong> ${ocrData.surname}</p>
+                    <p><strong>Tug'ilgan sana:</strong> ${ocrData.birthDate}</p>
+                `;
+                downloadButton.disabled = false;
+            } catch (error) {
+                console.error("Rasmni qayta ishlashda xatolik:", error);
+                resultDiv.innerHTML = "Rasmni qayta ishlashda xatolik yuz berdi.";
+            } finally {
+                processButton.disabled = false;
+                startButton.style.display = 'block';
+                captureButton.disabled = true;
+            }
+        });
+
+        downloadButton.addEventListener('click', () => {
+            // Word faylini yaratish
+            const doc = new Docxtemplater();
+            const template = `
+                <h2>ID Karta Ma'lumotlari</h2>
+                <p><strong>Ism:</strong> {{name}}</p>
+                <p><strong>Familiya:</strong> {{surname}}</p>
+                <p><strong>Tug'ilgan sana:</strong> {{birthDate}}</p>
+            `;
+
+            doc.loadZip(new JSZip());
+            doc.setData(ocrData);
+            doc.render();
+
+            const out = doc.getZip().generate({ type: "blob" });
+            saveAs(out, "ID_karta_ma'lumotlari.docx");
+        });
+    </script>
+</body>
+</html>
