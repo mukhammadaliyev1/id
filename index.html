@@ -1,4 +1,4 @@
-ㅤㅤㅤ, [12/10/24 5:22 AM]
+ㅤㅤㅤ, [12/10/24 5:34 AM]
 <!DOCTYPE html>
 <html lang="uz">
 <head>
@@ -71,19 +71,13 @@
             }
         });
 
-        // Rasmni yaxshilash (contrast, grayscale)
-        const enhanceImage = (canvas) => {
-            const context = canvas.getContext('2d');
-            context.filter = 'contrast(150%) grayscale(100%)';  // kontrast va kulrangga aylantirish
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        };
-
         // Rasmga olish
         captureButton.addEventListener('click', () => {
             const canvas = document.createElement('canvas');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            enhanceImage(canvas);  // Yaxshilash
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
             photo.src = canvas.toDataURL('image/jpeg');
             photo.style.display = 'block';
             video.style.display = 'none';
@@ -103,8 +97,7 @@
             resultDiv.innerHTML = "Rasm qayta ishlanmoqda...";
             processButton.disabled = true;
 
-ㅤㅤ
-try {
+            try {
                 const worker = await Tesseract.createWorker({
                     logger: (m) => console.log(m), // Jarayonni kuzatish
                 });
@@ -114,16 +107,19 @@ try {
                 const { data: { text } } = await worker.recognize(photo.src);
                 await worker.terminate();
 
-                // Regexni yaxshilash
-                const name = text.match(/Ism:?\s*([A-Za-zА-Яа-яЁё\s]+)/i)?.[1]  ;
-                const surname = text.match(/Familiya:?\s*([A-Za-zА-Яа-яЁё\s]+)/i)?.[1]  ;
-                const birthDate = text.match(/Tug['’]ilgan sana:?\s*(\d{2}\.\d{2}\.\d{4})/i)?.[1] || "Topilmadi";
+ㅤㅤㅤ, [12/10/24 5:34 AM]
+// Yangi Regexni qo'llash
+                const name = text.match(/([A-Za-zА-Яа-яЁё]+)\s+([A-Za-zА-Яа-яЁё]+)/i); // Ism va Familiya
+                const birthDate = text.match(/Tug['’]ilgan sana[:\s]*([\d]{2}[\.-][\d]{2}[\.-][\d]{4})/i); // Tug'ilgan sana
+                const firstName = name ? name[1] : "Topilmadi";
+                const lastName = name ? name[2] : "Topilmadi";
+                const birthDateFormatted = birthDate ? birthDate[1] : "Topilmadi";
 
                 resultDiv.innerHTML = `
                     <h2>Natija:</h2>
-                    <p><strong>Ism:</strong> ${name}</p>
-                    <p><strong>Familiya:</strong> ${surname}</p>
-                    <p><strong>Tug'ilgan sana:</strong> ${birthDate}</p>
+                    <p><strong>Ism:</strong> ${firstName}</p>
+                    <p><strong>Familiya:</strong> ${lastName}</p>
+                    <p><strong>Tug'ilgan sana:</strong> ${birthDateFormatted}</p>
                 `;
             } catch (error) {
                 console.error("Rasmni qayta ishlashda xatolik:", error);
