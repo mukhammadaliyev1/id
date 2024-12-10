@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kamerani Sinov</title>
+    <title>ID Karta Skaneri</title>
     <link rel="icon" href="data:,">
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js"></script>
+    <script src="https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -33,8 +33,8 @@
     </style>
 </head>
 <body>
-    <h1>Kamerani Sinov</h1>
-    <video id="video" autoplay playsinline></video>
+    <h1>ID Karta Skaneri</h1>
+    <video id="video" autoplay playsinline style="display:none;"></video>
     <img id="photo" style="display:none;">
     <button id="startCamera">Kamerani yoqish</button>
     <button id="capturePhoto" disabled>Rasmga olish</button>
@@ -56,8 +56,8 @@
                 stream = await navigator.mediaDevices.getUserMedia({
                     video: {
                         facingMode: { ideal: 'environment' },
-                        width: { ideal: 720 },
-                        height: { ideal: 1280 }
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
                     }
                 });
 
@@ -97,10 +97,14 @@
             processButton.disabled = true;
 
             try {
-                const { data: { text } } = await Tesseract.recognize(photo.src, 'uzb+eng');
+                const worker = await Tesseract.createWorker('eng+uzb');
+                const { data: { text } } = await worker.recognize(photo.src);
+                await worker.terminate();
+
                 const name = text.match(/Ism:?\s*([^\n]+)/i)?.[1] || "Topilmadi";
                 const surname = text.match(/Familiya:?\s*([^\n]+)/i)?.[1] || "Topilmadi";
                 const birthDate = text.match(/Tug['']ilgan sana:?\s*([0-9.]+)/i)?.[1] || "Topilmadi";
+
 
                 resultDiv.innerHTML = `
                     <h2>Natija:</h2>
