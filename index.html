@@ -3,105 +3,142 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ID Card OCR</title>
+    <title>Shaxsiy Guvohnoma OCR</title>
     <style>
-        /* Saytning umumiy ko'rinishi uchun oddiy stil */
         body {
             font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f4f4f4;
-        }
-        .container {
             text-align: center;
-            background-color: white;
             padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
-        video {
-            width: 100%;
-            max-width: 500px;
+
+        #video {
+            width: 80%;
+            max-width: 600px;
             border: 2px solid #ddd;
-            border-radius: 5px;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
         }
+
         button {
             padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-            background-color: #4CAF50;
+            margin-top: 20px;
+            background-color: green;
             color: white;
             border: none;
-            border-radius: 5px;
+            cursor: pointer;
         }
-        button:hover {
-            background-color: #45a049;
+
+        button:disabled {
+            background-color: gray;
         }
-        .result {
+
+        #output {
             margin-top: 20px;
             font-size: 18px;
-            color: #333;
+        }
+
+        .content {
+            margin: 30px 0;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>ID Kartani Rasmini Oling</h1>
+
+    <h1>Shaxsiy Guvohnomani O'qish</h1>
+
+    <div class="content">
         <video id="video" autoplay></video>
-        <button id="capture">Rasm Olish</button>
-        <div id="result" class="result"></div>
+        <button id="captureBtn">Rasmga olish</button>
     </div>
 
-    <!-- Tesseract.js va PizZip uchun CDN manzillari -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/2.1.1/tesseract.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.0/pizzip.min.js"></script>
+    <div id="output"></div>
+
+    <!-- Tesseract.js kutubxonasini yuklash -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.1.0/dist/tesseract.min.js"></script>
 
     <script>
-        // Kamera olish uchun kerakli kod
+        // Kamera olingan rasmni chiqarish
         const video = document.getElementById('video');
-        const captureButton = document.getElementById('capture');
-        const resultDiv = document.getElementById('result');
+        const captureBtn = document.getElementById('captureBtn');
+        const outputDiv = document.getElementById('output');
+        let stream;
 
-        // Kamera ishga tushirish
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-            .then(stream => {
-                video.srcObject = stream;
-            })
-            .catch(error => {
-                alert('Kamera ishlatilmayapti: ' + error);
+        // Kamera boshlash
+        async function startCamera() {
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: true
             });
+            video.srcObject = stream;
+        }
 
-        // Rasm olish va OCR ishlatish
-        captureButton.addEventListener('click', () => {
+        // Rasmni olish
+        captureBtn.addEventListener('click', async () => {
+            captureBtn.disabled = true;
+
+            // Canvas yaratish
             const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
+            const ctx = canvas.getContext('2d');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-            const imgData = canvas.toDataURL('image/png');
-
-            // Tesseract.js bilan OCR ishlatish
-            Tesseract.recognize(
-                imgData,
-                'eng', // Agar siz boshqa tilni qo'llamoqchi bo'lsangiz, masalan: 'uzb' (O'zbek tili)
+            // Tesseract.js bilan OCR
+            const result = await Tesseract.recognize(
+                canvas.toDataURL(),
+                'eng+uz',  // ingliz va o'zbek tilida o'qish
                 {
-                    logger: m => console.log(m) // Konsolda progressni ko'rish
+                    logger: (m) => console.log(m) // Log xabarlarini chiqarish
                 }
-            ).then(({ data: { text } }) => {
-                // OCR natijasini ekranda chiqarish
-                resultDiv.innerHTML = `
-                    <h3>Natija:</h3>
-                    <p>${text}</p>
-                `;
-            }).catch(error => {
-                resultDiv.innerHTML = `<p>Hato yuz berdi: ${error}</p>`;
-            });
+            );
+
+            const text = result.data.text;
+            console.log(text);  // Konsolga chiqarish
+
+            // Ism, familiya va tug'ilgan yilni ajratish
+            const namePattern = /([A-Za-z]+)\s([A-Za-z]+)/;
+            const dobPattern = /\d{2}.\d{2}.\d{4}/;
+
+            const nameMatch = text.match(namePattern);
+            const dobMatch = text.match(dobPattern);
+
+            const name = nameMatch ? nameMatch[0] : 'Ism topilmadi';
+            const dob = dobMatch ? dobMatch[0] : 'Tug‘ilgan sana topilmadi';
+
+            outputDiv.innerHTML = `
+                <h2>Natija:</h2>
+                <p>Ism: ${name}</p>
+                <p>Tug‘ilgan sana: ${dob}</p>
+            `;
+
+            // Word faylini yaratish
+            createWordFile(name, dob);
         });
+
+        // Word faylini yaratish
+        function createWordFile(name, dob) {
+            const doc = new Document({
+                sections: [
+                    {
+                        properties: {},
+                        children: [
+                            new Paragraph({
+                                children: [
+                                    new TextRun(`Ism: ${name}`),
+                                    new TextRun(`Tug‘ilgan sana: ${dob}`)
+                                ]
+                            })
+                        ]
+                    }
+                ]
+            });
+
+            // Word faylini yuklab olish
+            Packer.toBlob(doc).then((blob) => {
+                saveAs(blob, "Shaxsiy_Guvohnoma.docx");
+            });
+        }
+
+        // Kamera ishga tushirish
+        startCamera();
     </script>
 </body>
 </html>
