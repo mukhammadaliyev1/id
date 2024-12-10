@@ -43,89 +43,122 @@
 </head>
 <body>
 
-    <h1>Shaxsiy Guvohnomangizni Rasmga Oling</h1>
-
-    <video id="video" autoplay></video>
+    <h1>Shaxsiy Guvohnomani O'qish</h1>
 
     <div class="content">
-        <button id="startButton" onclick="takeSnapshot()">Rasmga olish</button>
+        <video id="video" autoplay></video>
+        <button id="captureBtn">Rasmga olish</button>
     </div>
 
-    <h3>Natija:</h3>
     <div id="output"></div>
 
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.0.0-beta.4/dist/tesseract.min.js"></script>
+    <!-- Tesseract.js kutubxonasini yuklash -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.1.0/dist/tesseract.min.js"></script>
+    <!-- Word faylini yaratish uchun kerakli kutubxonalar -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.0.6/pizzip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.17.0/docxtemplater.js"></script>
+    
     <script>
+        // Kamera olingan rasmni chiqarish
         const video = document.getElementById('video');
-        const startButton = document.getElementById('startButton');
+        const captureBtn = document.getElementById('captureBtn');
         const outputDiv = document.getElementById('output');
-        let isCameraActive = false;
+        let stream;
 
-        // Kamera olish uchun funksiyani chaqiramiz
+        // Kamera boshlash
         async function startCamera() {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: "environment" // Telefonning orqa kamerasini ishlatadi
-                }
-            });
+            // Qurilmadagi barcha video qurilmalari haqida ma'lumot olish
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(device => device.kind === 'videoinput');
 
-            video.srcObject = stream;
-            isCameraActive = true;
+            // Mobil qurilmada faqat orqa kamerani tanlash
+            let backCamera = videoDevices.find(device => device.label.toLowerCase().includes('back') || device.deviceId);
+            if (!backCamera && videoDevices.length > 0) {
+                backCamera = videoDevices[0];  // Agar orqa kamera topilmasa, birinchi kamerani ishlatish
+            }
+
+            // Agar orqa kamera topilsa, uni faollashtiramiz
+            if (backCamera) {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        deviceId: backCamera.deviceId
+                    }
+                });
+                video.srcObject = stream;
+            } else {
+                outputDiv.innerHTML = 'Kamera topilmadi.';
+            }
         }
 
-        // Kamera rasm olish funksiyasi
-        function takeSnapshot() {
-            if (!isCameraActive) return;
+        // Rasmni olish
+        captureBtn.addEventListener('click', async () => {
+            captureBtn.disabled = true;
 
+            // Canvas yaratish
             const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            const context = canvas.getContext('2d');
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-            const imageUrl = canvas.toDataURL('image/png');
-            processImage(imageUrl);
-        }
-
-        // Tesseract.js bilan OCRni ishlatish
-        function processImage(imageUrl) {
-            outputDiv.innerHTML = "Rasmni tahlil qilinmoqda...";
-
-            Tesseract.recognize(
-                imageUrl,
-                'eng', // Bu yerda tilni o'zgartirishingiz mumkin (masalan, 'uz' uchun o'zbekcha)
+            // Tesseract.js bilan OCR
+            const result = await Tesseract.recognize(
+                canvas.toDataURL(),
+                'eng+uz',  // ingliz va o'zbek tilida o'qish
                 {
-                    logger: (m) => console.log(m), // Konsolda loglar ko'rsatiladi
+                    logger: (m) => console.log(m) // Log xabarlarini chiqarish
                 }
-            ).then(({ data: { text } }) => {
-                outputDiv.innerHTML = `<strong>Olingan Ma'lumotlar:</strong><br> ${text}`;
-                createWordFile(text);
-            });
-        }
+            );
 
-        // OCR natijalarini Word formatiga saqlash
-        function createWordFile(text) {
-            const docx = new window.docx.Document({
+            const text = result.data.text;
+            console.log(text);  // Konsolga chiqarish
+
+            // Ism, familiya va tug'ilgan yilni ajratish
+            const namePattern = /([A-Za-z]+)\s([A-Za-z]+)/;
+            const dobPattern = /\d{2}.\d{2}.\d{4}/;
+
+            const nameMatch = text.match(namePattern);
+            const dobMatch = text.match(dobPattern);
+
+            const name = nameMatch ? nameMatch[0] : 'Ism topilmadi';
+            const dob = dobMatch ? dobMatch[0] : 'Tug‘ilgan sana topilmadi';
+
+            outputDiv.innerHTML = `
+                <h2>Natija:</h2>
+                <p>Ism: ${name}</p>
+                <p>Tug‘ilgan sana: ${dob}</p>
+            `;
+
+            // Word faylini yaratish
+            createWordFile(name, dob);
+        });
+
+        // Word faylini yaratish
+        function createWordFile(name, dob) {
+            const doc = new Document({
                 sections: [
                     {
                         properties: {},
                         children: [
-                            new window.docx.Paragraph({
-                                text: text,
-                                heading: window.docx.HeadingLevel.HEADING_1,
-                            }),
-                        ],
-                    },
-                ],
+                            new Paragraph({
+                                children: [
+                                    new TextRun(`Ism: ${name}`),
+                                    new TextRun(`Tug‘ilgan sana: ${dob}`)
+                                ]
+                            })
+                        ]
+                    }
+                ]
             });
 
-            // Word faylini saqlash
-            window.saveAs(docx, "Shaxsiy_Guvohnoma.docx");
+            // Word faylini yuklab olish
+            Packer.toBlob(doc).then((blob) => {
+                saveAs(blob, "Shaxsiy_Guvohnoma.docx");
+            });
         }
 
-        // Kamera ishga tushiriladi
+        // Kamera ishga tushirish
         startCamera();
-
     </script>
 </body>
 </html>
