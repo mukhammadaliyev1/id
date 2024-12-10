@@ -106,11 +106,13 @@
                 const { data: { text } } = await worker.recognize(photo.src);
                 await worker.terminate();
 
-                const name = text.match(/([A-Za-zА-Яа-яЁё]+)\s+([A-Za-zА-Яа-яЁё]+)/i);
-                const birthDate = text.match(/Tug['']ilgan sana[:\s]*([\d]{2}[\.-][\d]{2}[\.-][\d]{4})/i);
-                const firstName = name ? name[1] : "Topilmadi";
-                const lastName = name ? name[2] : "Topilmadi";
-                const birthDateFormatted = birthDate ? birthDate[1] : "Topilmadi";
+                // Yangi regex patternni tuzish
+                const nameMatch = text.match(/([A-Za-zА-Яа-яЁё]+)\s+([A-Za-zА-Яа-яЁё]+)/i);
+                const birthDateMatch = text.match(/Tug['’]ilgan sana[:\s]*([\d]{2}[\.\/\-][\d]{2}[\.\/\-][\d]{4})/i);
+
+                const firstName = nameMatch ? nameMatch[1] : "Topilmadi";
+                const lastName = nameMatch ? nameMatch[2] : "Topilmadi";
+                const birthDateFormatted = birthDateMatch ? birthDateMatch[1] : "Topilmadi";
 
                 resultDiv.innerHTML = `
                     <h2>Natija:</h2>
