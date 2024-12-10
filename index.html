@@ -1,11 +1,9 @@
-<!-- 
 <!DOCTYPE html>
 <html lang="uz">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ID Karta Skaneri</title>
-    <link rel="icon" href="data:,">
     <script src="https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js"></script>
     <style>
         body {
@@ -40,6 +38,7 @@
     <button id="startCamera">Kamerani yoqish</button>
     <button id="capturePhoto" disabled>Rasmga olish</button>
     <button id="processImage" disabled>Rasmni qayta ishlash</button>
+    <button id="resetApp" style="display:none;">Qayta boshlash</button>
     <div id="result"></div>
 
     <script>
@@ -48,11 +47,11 @@
         const startButton = document.getElementById('startCamera');
         const captureButton = document.getElementById('capturePhoto');
         const processButton = document.getElementById('processImage');
+        const resetButton = document.getElementById('resetApp');
         const resultDiv = document.getElementById('result');
         let stream;
 
-        
-        startButton.addEventListener('click', async () => {
+        async function startCamera() {
             try {
                 stream = await navigator.mediaDevices.getUserMedia({
                     video: {
@@ -65,14 +64,14 @@
                 video.srcObject = stream;
                 video.style.display = 'block';
                 captureButton.disabled = false;
+                startButton.disabled = true;
             } catch (error) {
                 console.error("Kamerani yoqishda xatolik:", error);
                 alert("Kamera ishlamayapti. Iltimos, ruxsat berganingizni yoki HTTPS ishlatayotganingizni tekshiring.");
             }
-        });
+        }
 
-
-        captureButton.addEventListener('click', () => {
+        function capturePhoto() {
             const canvas = document.createElement('canvas');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
@@ -85,10 +84,10 @@
                 stream.getTracks().forEach(track => track.stop());
             }
             processButton.disabled = false;
-        });
+            captureButton.disabled = true;
+        }
 
-    
-        processButton.addEventListener('click', async () => {
+        async function processImage() {
             if (!photo.src) {
                 alert("Iltimos, avval rasmga oling.");
                 return;
@@ -99,7 +98,7 @@
 
             try {
                 const worker = await Tesseract.createWorker({
-                    logger: (m) => console.log(m), 
+                    logger: (m) => console.log(m),
                 });
                 await worker.load();
                 await worker.loadLanguage('eng+uzb');
@@ -107,10 +106,8 @@
                 const { data: { text } } = await worker.recognize(photo.src);
                 await worker.terminate();
 
-
-
-                const name = text.match(/([A-Za-zА-Яа-яЁё]+)\s+([A-Za-zА-Яа-яЁё]+)/i); // Ism va Familiya
-                const birthDate = text.match(/Tug['’]ilgan sana[:\s]*([\d]{2}[\.-][\d]{2}[\.-][\d]{4})/i); // Tug'ilgan sana
+                const name = text.match(/([A-Za-zА-Яа-яЁё]+)\s+([A-Za-zА-Яа-яЁё]+)/i);
+                const birthDate = text.match(/Tug['']ilgan sana[:\s]*([\d]{2}[\.-][\d]{2}[\.-][\d]{4})/i);
                 const firstName = name ? name[1] : "Topilmadi";
                 const lastName = name ? name[2] : "Topilmadi";
                 const birthDateFormatted = birthDate ? birthDate[1] : "Topilmadi";
@@ -121,161 +118,30 @@
                     <p><strong>Familiya:</strong> ${lastName}</p>
                     <p><strong>Tug'ilgan sana:</strong> ${birthDateFormatted}</p>
                 `;
+                resetButton.style.display = 'block';
             } catch (error) {
                 console.error("Rasmni qayta ishlashda xatolik:", error);
-                resultDiv.innerHTML = "Rasmni qayta ishlashda xatolik yuz berdi.";
+                resultDiv.innerHTML = "Rasmni qayta ishlashda xatolik yuz berdi. Iltimos, qaytadan urinib ko'ring.";
             } finally {
                 processButton.disabled = false;
             }
-        });
+        }
+
+        function resetApp() {
+            photo.style.display = 'none';
+            photo.src = '';
+            video.style.display = 'none';
+            resultDiv.innerHTML = '';
+            startButton.disabled = false;
+            captureButton.disabled = true;
+            processButton.disabled = true;
+            resetButton.style.display = 'none';
+        }
+
+        startButton.addEventListener('click', startCamera);
+        captureButton.addEventListener('click', capturePhoto);
+        processButton.addEventListener('click', processImage);
+        resetButton.addEventListener('click', resetApp);
     </script>
 </body>
 </html>
- -->
-
-
- <!DOCTYPE html>
- <html lang="uz">
- <head>
-     <meta charset="UTF-8">
-     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-     <title>ID Karta Skaneri</title>
-     <script src="https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js"></script>
-     <style>
-         body {
-             font-family: Arial, sans-serif;
-             max-width: 600px;
-             margin: 0 auto;
-             padding: 20px;
-         }
-         video, img {
-             width: 100%;
-             max-width: 400px;
-             margin-bottom: 10px;
-         }
-         button {
-             display: block;
-             width: 100%;
-             padding: 10px;
-             margin-bottom: 10px;
-             font-size: 16px;
-         }
-         #result {
-             margin-top: 20px;
-             border: 1px solid #ccc;
-             padding: 10px;
-         }
-     </style>
- </head>
- <body>
-     <h1>ID Karta Skaneri</h1>
-     <video id="video" autoplay playsinline style="display:none;"></video>
-     <img id="photo" style="display:none;">
-     <button id="startCamera">Kamerani yoqish</button>
-     <button id="capturePhoto" disabled>Rasmga olish</button>
-     <button id="processImage" disabled>Rasmni qayta ishlash</button>
-     <button id="resetApp" style="display:none;">Qayta boshlash</button>
-     <div id="result"></div>
- 
-     <script>
-         const video = document.getElementById('video');
-         const photo = document.getElementById('photo');
-         const startButton = document.getElementById('startCamera');
-         const captureButton = document.getElementById('capturePhoto');
-         const processButton = document.getElementById('processImage');
-         const resetButton = document.getElementById('resetApp');
-         const resultDiv = document.getElementById('result');
-         let stream;
- 
-         // Kamerani ishga tushirish
-         async function startCamera() {
-             try {
-                 stream = await navigator.mediaDevices.getUserMedia({
-                     video: { facingMode: { ideal: 'environment' } },
-                 });
-                 video.srcObject = stream;
-                 video.style.display = 'block';
-                 captureButton.disabled = false;
-                 startButton.disabled = true;
-             } catch (error) {
-                 alert("Kamera ishlamayapti. Iltimos, ruxsat bering yoki HTTPS'dan foydalaning.");
-             }
-         }
- 
-         // Rasmlarni suratga olish
-         function capturePhoto() {
-             const canvas = document.createElement('canvas');
-             canvas.width = video.videoWidth;
-             canvas.height = video.videoHeight;
-             const context = canvas.getContext('2d');
-             context.drawImage(video, 0, 0, canvas.width, canvas.height);
-             photo.src = canvas.toDataURL('image/jpeg');
-             photo.style.display = 'block';
-             video.style.display = 'none';
-             if (stream) {
-                 stream.getTracks().forEach(track => track.stop());
-             }
-             processButton.disabled = false;
-             captureButton.disabled = true;
-         }
- 
-         // OCR orqali rasmni qayta ishlash
-         async function processImage() {
-             if (!photo.src) {
-                 alert("Iltimos, avval rasmga oling.");
-                 return;
-             }
-             resultDiv.innerHTML = "Rasm qayta ishlanmoqda...";
-             processButton.disabled = true;
- 
-             try {
-                 const worker = await Tesseract.createWorker();
-                 await worker.load();
-                 await worker.loadLanguage('eng+uzb');
-                 await worker.initialize('eng+uzb');
-                 const { data: { text } } = await worker.recognize(photo.src);
-                 await worker.terminate();
- 
-                 // Regex yordamida kerakli ma'lumotlarni ajratish
-                 const surnameMatch = text.match(/Familiyasi[:\s]*([^\n]+)/);
-                 const firstnameMatch = text.match(/Ismi[:\s]*([^\n]+)/);
-                 const birthDateMatch = text.match(/Tug'ilgan sana[:\s]*([\d]{2}\.[\d]{2}\.[\d]{4})/);
- 
-                 const surname = surnameMatch ? surnameMatch[1].trim() : "Topilmadi";
-                 const firstname = firstnameMatch ? firstnameMatch[1].trim() : "Topilmadi";
-                 const birthDate = birthDateMatch ? birthDateMatch[1].trim() : "Topilmadi";
- 
-                 // Natijalarni chiqarish
-                 resultDiv.innerHTML = `
-                     <h2>Natija:</h2>
-                     <p><strong>Familiya:</strong> ${surname}</p>
-                     <p><strong>Ism:</strong> ${firstname}</p>
-                     <p><strong>Tug'ilgan sana:</strong> ${birthDate}</p>
-                 `;
-                 resetButton.style.display = 'block';
-             } catch (error) {
-                 console.error(error);
-                 resultDiv.innerHTML = "Xatolik yuz berdi. Qayta urinib ko'ring.";
-             }
-         }
- 
-         // Ilovani qayta boshlash
-         function resetApp() {
-             photo.style.display = 'none';
-             photo.src = '';
-             video.style.display = 'none';
-             resultDiv.innerHTML = '';
-             startButton.disabled = false;
-             captureButton.disabled = true;
-             processButton.disabled = true;
-             resetButton.style.display = 'none';
-         }
- 
-         startButton.addEventListener('click', startCamera);
-         captureButton.addEventListener('click', capturePhoto);
-         processButton.addEventListener('click', processImage);
-         resetButton.addEventListener('click', resetApp);
-     </script>
- </body>
- </html>
- 
