@@ -107,7 +107,7 @@
                 const { data: { text } } = await worker.recognize(photo.src);
                 await worker.terminate();
 
-ㅤㅤㅤ, [12/10/24 5:34 AM]
+
 // Yangi Regexni qo'llash
                 const name = text.match(/([A-Za-zА-Яа-яЁё]+)\s+([A-Za-zА-Яа-яЁё]+)/i); // Ism va Familiya
                 const birthDate = text.match(/Tug['’]ilgan sana[:\s]*([\d]{2}[\.-][\d]{2}[\.-][\d]{4})/i); // Tug'ilgan sana
