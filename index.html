@@ -43,102 +43,89 @@
 </head>
 <body>
 
-    <h1>Shaxsiy Guvohnomani O'qish</h1>
+    <h1>Shaxsiy Guvohnomangizni Rasmga Oling</h1>
+
+    <video id="video" autoplay></video>
 
     <div class="content">
-        <video id="video" autoplay></video>
-        <button id="captureBtn">Rasmga olish</button>
+        <button id="startButton" onclick="takeSnapshot()">Rasmga olish</button>
     </div>
 
+    <h3>Natija:</h3>
     <div id="output"></div>
 
-    <!-- Tesseract.js kutubxonasini yuklash -->
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.1.0/dist/tesseract.min.js"></script>
-
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.0.0-beta.4/dist/tesseract.min.js"></script>
     <script>
-        // Kamera olingan rasmni chiqarish
         const video = document.getElementById('video');
-        const captureBtn = document.getElementById('captureBtn');
+        const startButton = document.getElementById('startButton');
         const outputDiv = document.getElementById('output');
-        let stream;
+        let isCameraActive = false;
 
-        // Kamera boshlash
+        // Kamera olish uchun funksiyani chaqiramiz
         async function startCamera() {
-            stream = await navigator.mediaDevices.getUserMedia({
-                video: true
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: "environment" // Telefonning orqa kamerasini ishlatadi
+                }
             });
+
             video.srcObject = stream;
+            isCameraActive = true;
         }
 
-        // Rasmni olish
-        captureBtn.addEventListener('click', async () => {
-            captureBtn.disabled = true;
+        // Kamera rasm olish funksiyasi
+        function takeSnapshot() {
+            if (!isCameraActive) return;
 
-            // Canvas yaratish
             const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-            // Tesseract.js bilan OCR
-            const result = await Tesseract.recognize(
-                canvas.toDataURL(),
-                'eng+uz',  // ingliz va o'zbek tilida o'qish
+            const imageUrl = canvas.toDataURL('image/png');
+            processImage(imageUrl);
+        }
+
+        // Tesseract.js bilan OCRni ishlatish
+        function processImage(imageUrl) {
+            outputDiv.innerHTML = "Rasmni tahlil qilinmoqda...";
+
+            Tesseract.recognize(
+                imageUrl,
+                'eng', // Bu yerda tilni o'zgartirishingiz mumkin (masalan, 'uz' uchun o'zbekcha)
                 {
-                    logger: (m) => console.log(m) // Log xabarlarini chiqarish
+                    logger: (m) => console.log(m), // Konsolda loglar ko'rsatiladi
                 }
-            );
+            ).then(({ data: { text } }) => {
+                outputDiv.innerHTML = `<strong>Olingan Ma'lumotlar:</strong><br> ${text}`;
+                createWordFile(text);
+            });
+        }
 
-            const text = result.data.text;
-            console.log(text);  // Konsolga chiqarish
-
-            // Ism, familiya va tug'ilgan yilni ajratish
-            const namePattern = /([A-Za-z]+)\s([A-Za-z]+)/;
-            const dobPattern = /\d{2}.\d{2}.\d{4}/;
-
-            const nameMatch = text.match(namePattern);
-            const dobMatch = text.match(dobPattern);
-
-            const name = nameMatch ? nameMatch[0] : 'Ism topilmadi';
-            const dob = dobMatch ? dobMatch[0] : 'Tug‘ilgan sana topilmadi';
-
-            outputDiv.innerHTML = `
-                <h2>Natija:</h2>
-                <p>Ism: ${name}</p>
-                <p>Tug‘ilgan sana: ${dob}</p>
-            `;
-
-            // Word faylini yaratish
-            createWordFile(name, dob);
-        });
-
-        // Word faylini yaratish
-        function createWordFile(name, dob) {
-            const doc = new Document({
+        // OCR natijalarini Word formatiga saqlash
+        function createWordFile(text) {
+            const docx = new window.docx.Document({
                 sections: [
                     {
                         properties: {},
                         children: [
-                            new Paragraph({
-                                children: [
-                                    new TextRun(`Ism: ${name}`),
-                                    new TextRun(`Tug‘ilgan sana: ${dob}`)
-                                ]
-                            })
-                        ]
-                    }
-                ]
+                            new window.docx.Paragraph({
+                                text: text,
+                                heading: window.docx.HeadingLevel.HEADING_1,
+                            }),
+                        ],
+                    },
+                ],
             });
 
-            // Word faylini yuklab olish
-            Packer.toBlob(doc).then((blob) => {
-                saveAs(blob, "Shaxsiy_Guvohnoma.docx");
-            });
+            // Word faylini saqlash
+            window.saveAs(docx, "Shaxsiy_Guvohnoma.docx");
         }
 
-        // Kamera ishga tushirish
+        // Kamera ishga tushiriladi
         startCamera();
+
     </script>
 </body>
 </html>
