@@ -1,163 +1,107 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ID Scanner & Export to Word</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f4f4f9;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-      flex-direction: column;
-    }
-    h1 {
-      color: #333;
-    }
-    #video {
-      border: 2px solid #333;
-      border-radius: 8px;
-      width: 90%;
-      max-width: 600px;
-      margin-bottom: 20px;
-    }
-    #capture-button {
-      padding: 15px 30px;
-      font-size: 18px;
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      transition: background-color 0.3s;
-    }
-    #capture-button:hover {
-      background-color: #45a049;
-    }
-    #result {
-      margin-top: 30px;
-      font-size: 18px;
-      color: #333;
-      text-align: center;
-      max-width: 600px;
-      width: 90%;
-      background-color: #fff;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-      word-wrap: break-word;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ID Card OCR</title>
+    <style>
+        /* Saytning umumiy ko'rinishi uchun oddiy stil */
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            text-align: center;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        video {
+            width: 100%;
+            max-width: 500px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .result {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #333;
+        }
+    </style>
 </head>
 <body>
-  <h1>Scan Your ID Card</h1>
-  <video id="video" width="100%" height="auto" autoplay></video>
-  <button id="capture-button">Capture ID</button>
-  <div id="result">Your extracted information will appear here.</div>
-  <button id="download-button" style="display:none;">Download as Word</button>
+    <div class="container">
+        <h1>ID Kartani Rasmini Oling</h1>
+        <video id="video" autoplay></video>
+        <button id="capture">Rasm Olish</button>
+        <div id="result" class="result"></div>
+    </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.0.0-beta.4"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.0.6/pizzip.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.21.0/docxtemplater.js"></script>
+    <!-- Tesseract.js va PizZip uchun CDN manzillari -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/2.1.1/tesseract.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.0/pizzip.min.js"></script>
 
-  <script>
-    const video = document.getElementById("video");
-    const captureButton = document.getElementById("capture-button");
-    const resultDiv = document.getElementById("result");
-    const downloadButton = document.getElementById("download-button");
+    <script>
+        // Kamera olish uchun kerakli kod
+        const video = document.getElementById('video');
+        const captureButton = document.getElementById('capture');
+        const resultDiv = document.getElementById('result');
 
-    // Start video stream from the camera
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-      .then(stream => {
-        video.srcObject = stream;
-      })
-      .catch(err => {
-        console.error("Error accessing the camera: ", err);
-      });
+        // Kamera ishga tushirish
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+            .then(stream => {
+                video.srcObject = stream;
+            })
+            .catch(error => {
+                alert('Kamera ishlatilmayapti: ' + error);
+            });
 
-    captureButton.addEventListener("click", () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        // Rasm olish va OCR ishlatish
+        captureButton.addEventListener('click', () => {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      // Run OCR on the captured image
-      Tesseract.recognize(
-        canvas,
-        'eng',
-        {
-          logger: info => console.log(info),
-        }
-      ).then(({ data: { text } }) => {
-        // Display extracted text
-        resultDiv.innerHTML = `
-          <h3>Extracted Information:</h3>
-          <p><strong>Text Found:</strong><br>${text}</p>
-        `;
-        
-        // Extract ismi, familiyasi, tugilgan sanasi if possible
-        const extractedData = extractData(text);
+            const imgData = canvas.toDataURL('image/png');
 
-        if (extractedData) {
-          resultDiv.innerHTML += `
-            <h3>Parsed Data:</h3>
-            <p><strong>Name:</strong> ${extractedData.name}</p>
-            <p><strong>Surname:</strong> ${extractedData.surname}</p>
-            <p><strong>Date of Birth:</strong> ${extractedData.dob}</p>
-          `;
-          
-          downloadButton.style.display = "block"; // Show download button
-        }
-      }).catch(error => {
-        resultDiv.innerHTML = "Error extracting text from image.";
-      });
-    });
-
-    downloadButton.addEventListener("click", () => {
-      const extractedData = extractData(resultDiv.innerHTML);
-
-      const doc = new PizZip();
-      const template = `
-        <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-          <w:body>
-            <w:p><w:r><w:t>Name: ${extractedData.name}</w:t></w:r></w:p>
-            <w:p><w:r><w:t>Surname: ${extractedData.surname}</w:t></w:r></w:p>
-            <w:p><w:r><w:t>Date of Birth: ${extractedData.dob}</w:t></w:r></w:p>
-          </w:body>
-        </w:document>
-      `;
-
-      const docx = new docxtemplater(doc, { zip: new PizZip() });
-
-      docx.render();
-      const content = docx.getZip().generate({ type: "blob" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(content);
-      link.download = "ID_Extracted_Data.docx";
-      link.click();
-    });
-
-    function extractData(text) {
-      const regexName = /([A-Za-z]+)\s([A-Za-z]+)/;
-      const regexDob = /(\d{2}\/\d{2}\/\d{4})/;
-      const matchName = text.match(regexName);
-      const matchDob = text.match(regexDob);
-
-      if (matchName && matchDob) {
-        return {
-          name: matchName[1],
-          surname: matchName[2],
-          dob: matchDob[0],
-        };
-      }
-
-      return null;
-    }
-  </script>
+            // Tesseract.js bilan OCR ishlatish
+            Tesseract.recognize(
+                imgData,
+                'eng', // Agar siz boshqa tilni qo'llamoqchi bo'lsangiz, masalan: 'uzb' (O'zbek tili)
+                {
+                    logger: m => console.log(m) // Konsolda progressni ko'rish
+                }
+            ).then(({ data: { text } }) => {
+                // OCR natijasini ekranda chiqarish
+                resultDiv.innerHTML = `
+                    <h3>Natija:</h3>
+                    <p>${text}</p>
+                `;
+            }).catch(error => {
+                resultDiv.innerHTML = `<p>Hato yuz berdi: ${error}</p>`;
+            });
+        });
+    </script>
 </body>
 </html>
